@@ -44,4 +44,4 @@ export const material = new THREE.ShaderMaterial({
 export const geometry = () => {}
 
 export const fly = true
-export const cameraOffset = new THREE.Vector3(0, 0, 1.5)
+export const cameraOffset = new THREE.Vector3(0, 1, 2.5)
