@@ -34,7 +34,7 @@ in vec3 cameraForward;
 
 #define MAX_DISTANCE 10.0
 #define MAX_COUNT 20
-#define MAX_OBJECTS 10
+#define MAX_OBJECTS 20
 // out highp vec4 pc_fragColor;
 
 
