@@ -13,9 +13,6 @@ texture1.flipY = true
 texture1.needsUpdate = true
 
 export const material = new THREE.ShaderMaterial({
-  // extensions: {
-  //   derivatives: '#extension GL_OES_standard_derivatives : enable',
-  // },
   side: THREE.DoubleSide,
   uniforms: {
     iTime: { value: 0 },
