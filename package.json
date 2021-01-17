@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "parcel-https": "parcel index.html --https --host 0.0.0.0",
-    "build": "parcel build index.html --out-dir docs",
+    "build": "parcel build index.html --out-dir docs --public-url https://shaderworlds.com",
     "parcel": "parcel index.html",
     "prettier": "prettier",
     "eslint": "eslint"
