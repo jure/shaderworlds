@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
 import bluenoise from './bluenoise.png'
-import fragment from './simplepathtracer.frag.glsl'
+import fragment from './pathtracer.frag.glsl'
 import vertex from './vertex.glsl'
 
 const texture1 = new THREE.TextureLoader().load(bluenoise)
