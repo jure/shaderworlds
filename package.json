@@ -17,7 +17,7 @@
     "dat.gui": "^0.7.7",
     "gsap": "^3.5.1",
     "parcel": "^1.12.4",
-    "three": "^0.123.0"
+    "three": "mrdoob/three.js#dev"
   },
   "devDependencies": {
     "eslint": "^7.16.0",
