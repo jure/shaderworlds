@@ -17,7 +17,9 @@ uniform sampler2D iChannel0;          // input channel. XX = 2D/Cube
 
 uniform vec3 leftControllerPosition;
 uniform vec3 rightControllerPosition;
-
+uniform mat4 leftControllerMatrix;
+uniform mat4 rightControllerMatrix;
+uniform vec4 leftControllerRotation;
 uniform vec3 iChannelResolution[1];
 
 in vec2 vUv;
@@ -28,11 +30,11 @@ uniform vec3 localCameraPos;
 #define HALF_PI		1.57079632679
 #define TAU     	6.28318530718
 
-#define FAST_TRACE
+//#define FAST_TRACE
 
-#define CEILING_HEIGHT			9.0
-#define COLUMN_DIST_X       4.
-#define COLUMN_DIST_Z				8.
+#define CEILING_HEIGHT			90.0
+#define COLUMN_DIST_X       5.0
+#define COLUMN_DIST_Z				5.0
 #define COLUMN_DIST 7.5
 #define MAT_COL					vec3(0.5, 0.4, 0.35)
 
@@ -41,7 +43,7 @@ uniform vec3 localCameraPos;
 // #define Z_OFFSET				iTime*COLUMN_DIST*0.25
 
 #define DRAW_LIGHT
-#define LIGHT_POSITION			vec3( sin(iTime*0.001*PI*0.125)*COLUMN_DIST*2.0, 2.0, 20.0)
+// #define LIGHT_POSITION			vec3( sin(iTime*0.001*PI*0.125)*COLUMN_DIST*2.0, 2.0, 20.0)
 #define SHADOW_HARDNESS			50.0
 
 #define FOG_NEAR				50.0
@@ -54,7 +56,7 @@ uniform vec3 localCameraPos;
 
 // #define DEBUG
 
-
+vec3 LIGHT_POSITION; 
 
 ///////////////////////////////////////////////////////////////////////////////////////
 //	MODEL															  		 		 //
@@ -90,19 +92,24 @@ float torus ( vec3 p, float ra, float rb ) {
 
 //scene (low quality to accelerate casting with FAST_TRACE)
 float modellq ( vec3 p ) {
-    p.x+=COLUMN_DIST*0.5;
-    vec3 pr = repeat( p, vec3(COLUMN_DIST,0.0,COLUMN_DIST) );
+    p.x+=COLUMN_DIST_X*0.5;
+    vec3 pr = repeat( p, vec3(COLUMN_DIST_X,0.0,COLUMN_DIST_Z) );
     return min( ybar(pr,vec2(0.7)), min( CEILING_HEIGHT-p.y, p.y ));
 }
 
 
 //scene
 float model ( vec3 p ) {
-    float hr = COLUMN_DIST*0.5;
-    p.x+=hr;
+    float hr = COLUMN_DIST_X*0.5;
+    // p.x+=hr;
     
+    // staff
+    vec3 ps = (leftControllerMatrix * vec4(p, 1.0)).xyz; 
+    float staff = ycylinder(ps + vec3(0,0.5,0), 0.05, 0.5);
+
+
     //pillars
-    vec3 pr = repeat( p, vec3(COLUMN_DIST,0.0,COLUMN_DIST) );
+    vec3 pr = repeat( p, vec3(COLUMN_DIST_X,0.0,COLUMN_DIST_Z) );
     float pillar = ycylinder( pr, 0.5, CEILING_HEIGHT );
     pillar = min( pillar, 	   ubox( pr-vec3(0.0,CEILING_HEIGHT-0.25,0.0), vec3(0.6,0.25,0.6) )-0.01 );
     pillar = min( pillar, 	   ubox( pr-vec3(0.0,CEILING_HEIGHT-0.05,0.0), vec3(0.6,0.0,0.6) )-0.05 );
@@ -118,14 +125,15 @@ float model ( vec3 p ) {
     
     //ceiling
     float ch = p.y-CEILING_HEIGHT+1.0;			//ceiling arch center height
-    float pxr = mod(p.x,COLUMN_DIST)-hr;
-    float pzr = mod(p.z,COLUMN_DIST)-hr;
-    float ceiling = COLUMN_DIST*0.7-0.4-sqrt( ch*ch + min( pzr*pzr, pxr*pxr ) );
-    float archestrim = max( ceiling-COLUMN_DIST*0.2, -ybar( vec3(pxr,p.y,pzr), vec2(hr-0.4)) );
+    float pxr = mod(p.x,COLUMN_DIST_X)-hr;
+    float pzr = mod((COLUMN_DIST_X/COLUMN_DIST_Z)*p.z,(COLUMN_DIST_X/COLUMN_DIST_Z)*COLUMN_DIST_Z)-hr;
+    float ceiling = COLUMN_DIST_X*0.7-0.4-sqrt( ch*ch + min( pzr*pzr, pxr*pxr ) );
+    float archestrim = max( ceiling-COLUMN_DIST_X*0.2, -ybar( vec3(pxr,p.y,pzr), vec2(hr-0.4)) );
     ceiling = min( ceiling, archestrim );
     ceiling = max( ceiling, CEILING_HEIGHT-p.y );
 
-    return min( min( ceiling, pillar ), p.y );
+    return min( min(staff, min( ceiling, pillar )), p.y );
+    //return staff;
 }
 
 
@@ -164,6 +172,7 @@ float calcintersection ( vec3 ro, vec3 rd ) {
 
 
 float lightintersection( vec3 ro, vec3 rd, float rad ) {
+
 	vec3 oc = ro - LIGHT_POSITION;
 	float b = dot( oc, rd );
 	float c = dot( oc, oc ) - rad*rad;
@@ -211,7 +220,7 @@ vec3 getdata ( vec3 ro, vec3 rd ) {
 
 
 vec3 getnormal ( vec3 p ) {
-	const float e = EPSILON*10.0;  //should be larger for smooth curves, smaller for fine geometric details
+	const float e = EPSILON*1.0;  //should be larger for smooth curves, smaller for fine geometric details
 	vec3 nor = vec3( model( p - vec3(e,0.0,0.0) ),
 					 model( p - vec3(0.0,e,0.0) ),
 					 model( p - vec3(0.0,0.0,e) ) );
@@ -229,7 +238,7 @@ vec3 getrendersample ( vec3 ro, vec3 rd ) {
     
     #ifdef DRAW_LIGHT
     float ll = lightintersection(ro, rd, 0.25);
-    if (ll>-0.5 && (ll<rl || rl<-0.5) ) return vec3(100.0);							//draw light source
+    if (ll>-0.5 && (ll<rl || rl<-0.5) ) return vec3(255.0);							//draw light source
     #endif
     
     if ( rl > -0.5 ) {
@@ -252,6 +261,7 @@ vec3 getrendersample ( vec3 ro, vec3 rd ) {
         //float spec = max( pow( dot(nor,hv), 50.0 ), 0.00001 );						//Blinn-Phong specular
         
         vec3 c = mix( diff*MAT_COL, vec3(spec), 0.05)*li;
+        // BEGIN
         if(c.r>0.0)
             c *= softshadow(xyz, ld, ldist);										//soft shadows
         
@@ -264,8 +274,8 @@ vec3 getrendersample ( vec3 ro, vec3 rd ) {
         float fog = clamp( (rl-FOG_NEAR)/(MAX_RAY_LENGTH-FOG_NEAR), 0.0, 1.0);
         c = mix(c, FOG_COL, fog);
         
-        //c *= clamp(model(ro)*2.0, 0.0, 1.0);										//fade to black when near geometry
-        
+        c *= clamp(model(ro)*2.0, 0.0, 1.0);										//fade to black when near geometry
+        // END
         return c;
 	} else {
 		return FOG_COL;
@@ -310,10 +320,15 @@ vec3 rotate_vector( vec4 quat, vec3 vec) {
   return vec + 2.0 * cross( cross( vec, quat.xyz ) + quat.w * vec, quat.xyz );
 }
 void main() {
+    //LIGHT_POSITION = leftControllerPosition;// + vec3(0.1, 0.8, 0.1);
     vec2 uv = vUv; // fragCoord.xy/iResolution.xy*2.0 - 1.0;	//camera-space position (-1 => 1)
     //uv.y *= iResolution.y/iResolution.x;
     
-    vec3 ro = virtualCameraPosition; // custom 
+
+    vec3 ro = virtualCameraPosition; // custom
+    LIGHT_POSITION = leftControllerPosition + rotate_vector(leftControllerRotation, vec3(0, -30.5, 0)); // * normalize(leftControllerMatrix*vec4(0,0,1,0)).xyz; // (leftControllerMatrix * vec4(0,0,1.,0.)).xyz;
+ 
+
     vec3 someVec = normalize(vPosition - localCameraPos);
     someVec = rotate_vector(virtualCameraQuat, someVec);
     vec3 rd = normalize(someVec);

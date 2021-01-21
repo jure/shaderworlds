@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls';
+import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls'
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js'
 // import { XRControllerModelFactory } from 'three/examples/jsm/webxr/XRControllerModelFactory'
 import { onKeyUp, onKeyDown } from './keys'
@@ -17,6 +17,9 @@ export default class Shaderworlds {
 
     this.leftControllerWorldPosition = new THREE.Vector3()
     this.rightControllerWorldPosition = new THREE.Vector3()
+
+    this.leftControllerRotation = new THREE.Quaternion()
+    this.rightControllerRotation = new THREE.Quaternion()
 
     this.currentProjectionMatrix = new THREE.Matrix4()
 
@@ -408,9 +411,15 @@ export default class Shaderworlds {
       const currentCamera = this.renderer.xr.getCamera(this.cameraSingle)
       currentCamera.getWorldQuaternion(this.cameraSingleQuat)
       // this.applyVelocity(delta)
+
+      // The WebXR emulator specifies a projection matrix for the main camera
+      // with NaN elements (e.g. HTC Vive emulator...)
+      // So we need to work around it (poorly) for now,
+      // by not updating the full screen quad.
       if (
+        !isNaN(currentCamera.projectionMatrix.elements[5]) &&
         this.currentProjectionMatrix.elements !==
-        currentCamera.projectionMatrix.elements
+          currentCamera.projectionMatrix.elements
       ) {
         this._updateCoverQuad({ camera: currentCamera })
         this.currentProjectionMatrix.copy(currentCamera.projectionMatrix)
@@ -421,6 +430,30 @@ export default class Shaderworlds {
       this.rightController.getWorldPosition(this.rightControllerWorldPosition)
       this.material.uniforms.rightControllerPosition.value = this.rightControllerWorldPosition
 
+      this.leftController.updateWorldMatrix()
+      this.material.uniforms.leftControllerMatrix.value.copy(
+        this.leftController.matrixWorld.invert()
+      )
+      this.rightController.updateWorldMatrix()
+      this.material.uniforms.rightControllerMatrix.value.copy(
+        this.rightController.matrixWorld.invert()
+      )
+
+      this.leftController.getWorldQuaternion(this.leftControllerRotation)
+      this.rightController.getWorldQuaternion(this.rightControllerRotation)
+
+      this.material.uniforms.leftControllerRotation.value = this.leftControllerRotation.invert()
+
+      // const testposition = new THREE.Vector3()
+      // const testrotation = new THREE.Quaternion()
+      // const testscale = new THREE.Vector3()
+      // this.leftController.updateWorldMatrix()
+      // this.leftController.matrixWorld.decompose(
+      //   testposition,
+      //   testrotation,
+      //   testscale
+      // )
+      // console.log('POS', this.leftControllerWorldPosition, '\n\nMAT', testposition)
       // Also update the world with the controller position, in case it wants to do something with that
       if (this.world.updateLeftControllerPosition) {
         this.world.updateLeftControllerPosition(

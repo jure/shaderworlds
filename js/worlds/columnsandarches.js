@@ -26,6 +26,9 @@ export const material = new THREE.ShaderMaterial({
     virtualCameraPosition: { value: new THREE.Vector3(0, 0, 0) },
     leftControllerPosition: { value: new THREE.Vector3(0, 0, 0) },
     rightControllerPosition: { value: new THREE.Vector3(0, 0, 0) },
+    leftControllerMatrix: { value: new THREE.Matrix4() },
+    rightControllerMatrix: { value: new THREE.Matrix4() },
+    leftControllerRotation: { value: new THREE.Quaternion() },
     zNear: { value: 0 },
     zFar: { value: 0 },
     worldDirection: { value: new THREE.Vector3() },
@@ -36,4 +39,4 @@ export const material = new THREE.ShaderMaterial({
 
 export const fly = true
 
-export const cameraOffset = new THREE.Vector3(3, 1.0, -6)
+// export const cameraOffset = new THREE.Vector3(3, 1.0, -6)
