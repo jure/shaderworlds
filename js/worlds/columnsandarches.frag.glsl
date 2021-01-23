@@ -26,17 +26,23 @@ in vec2 vUv;
 in vec3 vPosition;
 uniform vec3 localCameraPos;
 
+uniform float ceilingHeight;
+uniform float columnDistX;
+uniform float columnDistZ;
+uniform vec3 materialColor;
+uniform float lightOffset;
+
 #define PI			3.14159265359
 #define HALF_PI		1.57079632679
 #define TAU     	6.28318530718
 
 //#define FAST_TRACE
 
-#define CEILING_HEIGHT			90.0
-#define COLUMN_DIST_X       5.0
-#define COLUMN_DIST_Z				5.0
+// #define CEILING_HEIGHT			30.0
+// #define COLUMN_DIST_X       10.0
+// #define COLUMN_DIST_Z				20.0
 #define COLUMN_DIST 7.5
-#define MAT_COL					vec3(0.5, 0.4, 0.35)
+// #define MAT_COL					vec3(0.5, 0.2, 0.35)
 
 #define FOV						HALF_PI
 #define CAMERA_HEIGHT			2.0
@@ -92,30 +98,36 @@ float torus ( vec3 p, float ra, float rb ) {
 
 //scene (low quality to accelerate casting with FAST_TRACE)
 float modellq ( vec3 p ) {
-    p.x+=COLUMN_DIST_X*0.5;
-    vec3 pr = repeat( p, vec3(COLUMN_DIST_X,0.0,COLUMN_DIST_Z) );
-    return min( ybar(pr,vec2(0.7)), min( CEILING_HEIGHT-p.y, p.y ));
+    p.x+=columnDistX*0.5;
+    vec3 pr = repeat( p, vec3(columnDistX,0.0,columnDistZ) );
+    return min( ybar(pr,vec2(0.7)), min( ceilingHeight-p.y, p.y ));
 }
 
+// https://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
+float sdVerticalCapsule( vec3 p, float h, float r )
+{
+  p.y -= clamp( p.y, 0.0, h );
+  return length( p ) - r;
+}
 
 //scene
 float model ( vec3 p ) {
-    float hr = COLUMN_DIST_X*0.5;
+    float hr = columnDistX*0.5;
     // p.x+=hr;
     
-    // staff
+    // staff in the left controller space
     vec3 ps = (leftControllerMatrix * vec4(p, 1.0)).xyz; 
-    float staff = ycylinder(ps + vec3(0,0.5,0), 0.05, 0.5);
-
+    float staff = sdVerticalCapsule(ps + vec3(0,0.4,0), 1.0, 0.02);
+    // staff = min(staff, ycylinder(ps + vec3(0,1.1,0), 0.1, 0.02));
 
     //pillars
-    vec3 pr = repeat( p, vec3(COLUMN_DIST_X,0.0,COLUMN_DIST_Z) );
-    float pillar = ycylinder( pr, 0.5, CEILING_HEIGHT );
-    pillar = min( pillar, 	   ubox( pr-vec3(0.0,CEILING_HEIGHT-0.25,0.0), vec3(0.6,0.25,0.6) )-0.01 );
-    pillar = min( pillar, 	   ubox( pr-vec3(0.0,CEILING_HEIGHT-0.05,0.0), vec3(0.6,0.0,0.6) )-0.05 );
-    pillar = min( pillar, ycylinder( pr-vec3(0.0,CEILING_HEIGHT-0.65,0.0), 0.55, 0.2 ) );
-    pillar = min( pillar, 	  torus( pr-vec3(0.0,CEILING_HEIGHT-0.55,0.0), 0.55, 0.05 ) );
-    pillar = max( pillar, 	 -torus( pr-vec3(0.0,CEILING_HEIGHT-0.70,0.0), 0.55, 0.05 ) );
+    vec3 pr = repeat( p, vec3(columnDistX,0.0,columnDistZ) );
+    float pillar = ycylinder( pr, 0.5, ceilingHeight );
+    pillar = min( pillar, 	   ubox( pr-vec3(0.0,ceilingHeight-0.25,0.0), vec3(0.6,0.25,0.6) )-0.01 );
+    pillar = min( pillar, 	   ubox( pr-vec3(0.0,ceilingHeight-0.05,0.0), vec3(0.6,0.0,0.6) )-0.05 );
+    pillar = min( pillar, ycylinder( pr-vec3(0.0,ceilingHeight-0.65,0.0), 0.55, 0.2 ) );
+    pillar = min( pillar, 	  torus( pr-vec3(0.0,ceilingHeight-0.55,0.0), 0.55, 0.05 ) );
+    pillar = max( pillar, 	 -torus( pr-vec3(0.0,ceilingHeight-0.70,0.0), 0.55, 0.05 ) );
     pillar = min( pillar, ubox( pr, vec3(0.55,0.4,0.55) )-0.01 );
     pillar = min( pillar, ubox( pr, vec3(0.65,0.2,0.65) )-0.01 );
     pillar = min( pillar, ubox( pr+vec3(0.0,-0.45,0.0), vec3(0.55,0.0,0.55) )-0.05 );
@@ -124,16 +136,19 @@ float model ( vec3 p ) {
     pillar = max( pillar, -torus( pr+vec3(0.0,-0.6,0.0), 0.55, 0.05 ) );
     
     //ceiling
-    float ch = p.y-CEILING_HEIGHT+1.0;			//ceiling arch center height
-    float pxr = mod(p.x,COLUMN_DIST_X)-hr;
-    float pzr = mod((COLUMN_DIST_X/COLUMN_DIST_Z)*p.z,(COLUMN_DIST_X/COLUMN_DIST_Z)*COLUMN_DIST_Z)-hr;
-    float ceiling = COLUMN_DIST_X*0.7-0.4-sqrt( ch*ch + min( pzr*pzr, pxr*pxr ) );
-    float archestrim = max( ceiling-COLUMN_DIST_X*0.2, -ybar( vec3(pxr,p.y,pzr), vec2(hr-0.4)) );
+    float ch = p.y-ceilingHeight+1.0;			//ceiling arch center height
+    float pxr = mod(p.x,columnDistX)-hr;
+    float pzr = mod((columnDistX/columnDistZ)*p.z,(columnDistX/columnDistZ)*columnDistZ)-hr;
+    float ceiling = columnDistX*0.7-0.4-sqrt( ch*ch + min( pzr*pzr, pxr*pxr ));
+    float archestrim = max( ceiling-columnDistX*0.2, -ybar( vec3(pxr,p.y,pzr), vec2(hr-0.4)));
     ceiling = min( ceiling, archestrim );
-    ceiling = max( ceiling, CEILING_HEIGHT-p.y );
+    ceiling = max( ceiling, ceilingHeight-p.y );
 
+    // return min(min( ceiling, pillar ), p.y );
+    // return min(min(staff, pillar), p.y );
+    
     return min( min(staff, min( ceiling, pillar )), p.y );
-    //return staff;
+    // return staff;
 }
 
 
@@ -195,6 +210,7 @@ float softshadow( vec3 ro, vec3 rd, float ldist ) {
 }
 
 
+
 vec3 getdata ( vec3 ro, vec3 rd ) {
 	float h = 100.0;
 	float d = 0.0;
@@ -237,7 +253,7 @@ vec3 getrendersample ( vec3 ro, vec3 rd ) {
     float rl = calcintersection( ro, rd );
     
     #ifdef DRAW_LIGHT
-    float ll = lightintersection(ro, rd, 0.25);
+    float ll = lightintersection(ro, rd, 0.05);
     if (ll>-0.5 && (ll<rl || rl<-0.5) ) return vec3(255.0);							//draw light source
     #endif
     
@@ -248,7 +264,7 @@ vec3 getrendersample ( vec3 ro, vec3 rd ) {
         
         vec3 ld = normalize(LIGHT_POSITION-xyz);
         float ldist = distance(xyz,LIGHT_POSITION);
-        float li = 100.0/(ldist*ldist);
+        float li = 50.0/(ldist*ldist);
 
         float diff = max(dot(ld,nor),0.0);											//Lambertian diffuse
         
@@ -257,18 +273,17 @@ vec3 getrendersample ( vec3 ro, vec3 rd ) {
         float a = acos(dot(nor,hv));
         float ta = tan(a);
         float ca = cos(a);
-        float spec = exp(-(ta*ta)/(m*m))/(PI*m*m*ca*ca*ca*ca);						//Beckmann specular
-        //float spec = max( pow( dot(nor,hv), 50.0 ), 0.00001 );						//Blinn-Phong specular
+        //float spec = exp(-(ta*ta)/(m*m))/(PI*m*m*ca*ca*ca*ca);						//Beckmann specular
+        float spec = max( pow( dot(nor,hv), 50.0 ), 0.00001 );						//Blinn-Phong specular
         
-        vec3 c = mix( diff*MAT_COL, vec3(spec), 0.05)*li;
+        vec3 c = mix( diff*materialColor, vec3(spec), 0.05)*li;
         // BEGIN
         if(c.r>0.0)
             c *= softshadow(xyz, ld, ldist);										//soft shadows
+        c += materialColor*materialColor*100.0/((ldist+columnDistX*2.0)*(ldist+columnDistZ*2.0));		//first light bounce approximation
+        c += materialColor*materialColor*materialColor*100.0/((ldist+columnDistX*4.0)*(ldist+columnDistZ*4.0));	//second light bounce approximation
         
-        c += MAT_COL*MAT_COL*100.0/((ldist+COLUMN_DIST*2.0)*(ldist+COLUMN_DIST*2.0));		//first light bounce approximation
-        c += MAT_COL*MAT_COL*MAT_COL*100.0/((ldist+COLUMN_DIST*4.0)*(ldist+COLUMN_DIST*4.0));	//second light bounce approximation
-        
-        c += pow(1.0-dot(nor,-rd),3.0) * 0.2 * mix(FOG_COL,MAT_COL,min(li,1.0));	//add fresnel / rim light
+        c += pow(1.0-dot(nor,-rd),3.0) * 0.2 * mix(FOG_COL,materialColor,min(li,1.0));	//add fresnel / rim light
         
         //basic fog
         float fog = clamp( (rl-FOG_NEAR)/(MAX_RAY_LENGTH-FOG_NEAR), 0.0, 1.0);
@@ -320,24 +335,21 @@ vec3 rotate_vector( vec4 quat, vec3 vec) {
   return vec + 2.0 * cross( cross( vec, quat.xyz ) + quat.w * vec, quat.xyz );
 }
 void main() {
-    //LIGHT_POSITION = leftControllerPosition;// + vec3(0.1, 0.8, 0.1);
-    vec2 uv = vUv; // fragCoord.xy/iResolution.xy*2.0 - 1.0;	//camera-space position (-1 => 1)
-    //uv.y *= iResolution.y/iResolution.x;
-    
-
+    vec2 uv = vUv;
     vec3 ro = virtualCameraPosition; // custom
-    LIGHT_POSITION = leftControllerPosition + rotate_vector(leftControllerRotation, vec3(0, -30.5, 0)); // * normalize(leftControllerMatrix*vec4(0,0,1,0)).xyz; // (leftControllerMatrix * vec4(0,0,1.,0.)).xyz;
- 
 
+    // TODO: It's 4 AM. :)
+    if(length(leftControllerPosition) > 0.01) {
+      LIGHT_POSITION = leftControllerPosition + rotate_vector(leftControllerRotation, vec3(0, -1.5 - lightOffset, 0.00)) ; // * normalize(leftControllerMatrix*vec4(0,0,1,0)).xyz; // (leftControllerMatrix * vec4(0,0,1.,0.)).xyz;
+    } else {
+      LIGHT_POSITION = vec3(3,2,0);
+    }
     vec3 someVec = normalize(vPosition - localCameraPos);
     someVec = rotate_vector(virtualCameraQuat, someVec);
     vec3 rd = normalize(someVec);
 
-
-    // float d = 1.0/tan(FOV/2.0);							//distance from aperture/lens to picture plane
-    vec3 campos = ro; // vec3(0.0,CAMERA_HEIGHT,Z_OFFSET );
-    vec3 camray = rd; // normalize( vec3(uv,d) );
-
+    vec3 campos = ro;
+    vec3 camray = rd;
     
     #ifdef DEBUG
       vec3 col = getheatmap( campos, camray );
