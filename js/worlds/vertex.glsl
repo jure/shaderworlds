@@ -21,8 +21,7 @@ out mat4 vProjectionMatrix;
 out mat4 vModelViewProjectionMatrix;
 out mat4 vModelViewMatrix;
 
-// out vec3 dir;
-// out vec3 eye;
+
 out vec3 cameraForward;
 
 
@@ -37,14 +36,5 @@ void main() {
   vModelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
   vPosition = position;
 
-  // float aspect = projectionMatrix[1][1] / projectionMatrix[0][0];
-  // aspect = 1.0;
-  // float fov = 2.0*atan( 1.0/projectionMatrix[1][1] );
-  // fov = 1.0;
-  // dir = vec3(uv.x*fov*aspect,uv.y*fov,-1.0) *mat3(modelViewMatrix);
-  // dir = position;
-  // eye = -(modelViewMatrix[3].xyz) * mat3(modelViewMatrix);
-  
-  cameraForward = worldDirection;// vec3(0,0,-1.0)*mat3(modelViewMatrix);
-
+  cameraForward = worldDirection;
 }

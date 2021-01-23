@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls';
+import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls'
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js'
 // import { XRControllerModelFactory } from 'three/examples/jsm/webxr/XRControllerModelFactory'
 import { onKeyUp, onKeyDown } from './keys'
@@ -18,10 +18,13 @@ export default class Shaderworlds {
     this.leftControllerWorldPosition = new THREE.Vector3()
     this.rightControllerWorldPosition = new THREE.Vector3()
 
+    this.leftControllerRotation = new THREE.Quaternion()
+    this.rightControllerRotation = new THREE.Quaternion()
+
     this.currentProjectionMatrix = new THREE.Matrix4()
 
     const blocker = document.getElementById('blocker')
-    const instructions = document.getElementById('instructions')
+    this.instructions = document.getElementById('instructions')
 
     this.scene = new THREE.Scene()
 
@@ -56,7 +59,7 @@ export default class Shaderworlds {
     this.scene.add(this.dolly)
 
     // Pointer lock
-    instructions.addEventListener(
+    this.instructions.addEventListener(
       'click',
       function () {
         controls.lock()
@@ -65,13 +68,13 @@ export default class Shaderworlds {
     )
 
     this.controls.addEventListener('lock', function () {
-      instructions.style.display = 'none'
+      that.instructions.style.display = 'none'
       blocker.style.display = 'none'
     })
 
     this.controls.addEventListener('unlock', function () {
       blocker.style.display = 'block'
-      instructions.style.display = ''
+      that.instructions.style.display = ''
     })
 
     // One controller
@@ -101,8 +104,11 @@ export default class Shaderworlds {
     this.dolly.add(this.rightController)
 
     this.time = 0
-
     this.isPlaying = true
+
+    // Squeeze state
+    this.leftSqueeze = null
+    this.rightSqueeze = null
 
     this.render = this.render.bind(this)
     this.addObjects()
@@ -243,6 +249,9 @@ export default class Shaderworlds {
     // strip the starting ? and find the correct world, or default to worlds/soul.js
     const worldName = window.location.search.replace(/^\?/, '') || 'soul'
     this.world = worlds[worldName] || worlds.soul
+    
+    // Update the on screen instructions if available
+    this.world.instructions && (this.instructions.innerHTML = this.world.instructions)
     this.material = this.world.material
     if (this.world.cameraOffset) {
       this.dolly.position.set(
@@ -366,6 +375,47 @@ export default class Shaderworlds {
     }
   }
 
+  // Squeeze events don't current work on Link, emulating them
+  // with float button values. Caution: we SHOULDN'T listen to the
+  // squeeze events on xr.session AND synthesize events based on
+  // float values, as that will cause double events on platforms
+  // where the default events fire.
+  checkSqueeze() {
+    // Left squeeze
+    if (
+      this.renderer.xr.getSession().inputSources[0]?.gamepad.buttons[1]?.value >
+        0.98 &&
+      !this.leftSqueeze
+    ) {
+      this.world.onSqueezeStartLeft && this.world.onSqueezeStartLeft()
+      this.leftSqueeze = true
+    } else if (
+      this.renderer.xr.getSession().inputSources[0]?.gamepad.buttons[1]?.value <
+        0.02 &&
+      this.leftSqueeze
+    ) {
+      this.world.onSqueezeEndLeft && this.world.onSqueezeEndLeft()
+      this.leftSqueeze = false
+    }
+
+    // Right squeeze
+    if (
+      this.renderer.xr.getSession().inputSources[1]?.gamepad.buttons[1]?.value >
+        0.98 &&
+      !this.rightSqueeze
+    ) {
+      this.world.onSqueezeStartRight && this.world.onSqueezeStartRight()
+      this.rightSqueeze = true
+    } else if (
+      this.renderer.xr.getSession().inputSources[1]?.gamepad.buttons[1]?.value <
+        0.02 &&
+      this.rightSqueeze
+    ) {
+      this.world.onSqueezeEndLeft && this.world.onSqueezeEndLeft()
+      this.rightSqueeze = false
+    }
+  }
+
   render(time, frame, cameras) {
     this.material.uniforms.zNear.value = this.cameraSingle.near
     this.material.uniforms.zFar.value = this.cameraSingle.far
@@ -374,6 +424,9 @@ export default class Shaderworlds {
     this.time = performance.now()
 
     const delta = (this.time - this.prevTime) / 1000
+
+    // Check if the world also wants to do something per frame
+    this.world.tick && this.world.tick(delta)
 
     if (this.controls.isLocked === true) {
       const moveBackward = this.movement.moveBackward || 0
@@ -405,12 +458,20 @@ export default class Shaderworlds {
     this.material.uniforms.iFrame.value = this.currentFrame
 
     if (this.renderer.xr.isPresenting) {
+      this.checkSqueeze()
+
       const currentCamera = this.renderer.xr.getCamera(this.cameraSingle)
       currentCamera.getWorldQuaternion(this.cameraSingleQuat)
       // this.applyVelocity(delta)
+
+      // The WebXR emulator specifies a projection matrix for the main camera
+      // with NaN elements (e.g. HTC Vive emulator...)
+      // So we need to work around it (poorly) for now,
+      // by not updating the full screen quad.
       if (
+        !isNaN(currentCamera.projectionMatrix.elements[5]) &&
         this.currentProjectionMatrix.elements !==
-        currentCamera.projectionMatrix.elements
+          currentCamera.projectionMatrix.elements
       ) {
         this._updateCoverQuad({ camera: currentCamera })
         this.currentProjectionMatrix.copy(currentCamera.projectionMatrix)
@@ -420,6 +481,26 @@ export default class Shaderworlds {
       this.material.uniforms.leftControllerPosition.value = this.leftControllerWorldPosition
       this.rightController.getWorldPosition(this.rightControllerWorldPosition)
       this.material.uniforms.rightControllerPosition.value = this.rightControllerWorldPosition
+
+      this.leftController.updateWorldMatrix()
+      this.material.uniforms.leftControllerMatrix &&
+        this.material.uniforms.leftControllerMatrix.value.copy(
+          this.leftController.matrixWorld.invert()
+        )
+      this.rightController.updateWorldMatrix()
+      this.material.uniforms.leftControllerMatrix &&
+        this.material.uniforms.rightControllerMatrix.value.copy(
+          this.rightController.matrixWorld.invert()
+        )
+
+      this.leftController.getWorldQuaternion(this.leftControllerRotation)
+      this.rightController.getWorldQuaternion(this.rightControllerRotation)
+
+      // TODO: Extract common material base so that we don't have to check for shader features
+      this.material.uniforms.leftControllerRotation &&
+        (this.material.uniforms.leftControllerRotation.value = this.leftControllerRotation.invert())
+      this.material.uniforms.rightControllerRotation &&
+        (this.material.uniforms.rightControllerRotation.value = this.rightControllerRotation.invert())
 
       // Also update the world with the controller position, in case it wants to do something with that
       if (this.world.updateLeftControllerPosition) {
@@ -446,6 +527,7 @@ export default class Shaderworlds {
       this.material.uniforms.virtualCameraPosition.value.setFromMatrixPosition(
         this.cameraSingle.matrixWorld
       )
+      
     }
     this.prevTime = this.time
 

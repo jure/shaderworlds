@@ -55,6 +55,8 @@ export const material = new THREE.ShaderMaterial({
     virtualCameraPosition: { value: new THREE.Vector3(0, 0, 0) },
     leftControllerPosition: { value: new THREE.Vector3(0, 0, 0) },
     rightControllerPosition: { value: new THREE.Vector3(0, 0, 0) },
+    leftControllerMatrix: { value: new THREE.Matrix4() },
+    rightControllerMatrix: { value: new THREE.Matrix4() },
     dataTexture1: { value: dataTexture1 },
     zNear: { value: 0 },
     zFar: { value: 0 },
