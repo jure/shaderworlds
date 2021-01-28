@@ -1,12 +1,11 @@
 // Since no specific license was applied to shader https://www.shadertoy.com/view/MdyBzw
 // it falls under the site default license:
 // This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
-// Created by bradjamesgrant https://www.shadertoy.com/user/ChrisK
+// Created by ChrisK https://www.shadertoy.com/user/ChrisK
 
 // Modified by @JureTriglav (2021) to support interactivity and WebXR under the same CC-BY-NC-SA 3.0 license
+// Additional author permission for remix: Yes.
 
-//quick hack to loop every 16 seconds (fix problems occuring when shader runs for several minutes)
-// #define iTime mod(iTime, 16.0)
 precision highp float;
 uniform vec4      resolution;           // viewport resolution (in pixels)
 uniform vec4 virtualCameraQuat;
