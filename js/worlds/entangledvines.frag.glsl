@@ -294,7 +294,7 @@ float logBisectTrace( in vec3 ro, in vec3 rd){
         //else t += log(abs(d) + 1.1)*.75; // //To cross faster, a minimum step size.
         
         // Branchless version of the above.        
-        t += step(-1., -d)*(log(abs(d) + 1.1)*.7 - d*.7) + d*.99;
+        t += step(-1., -d)*(log(abs(d) + 1.1)*.7 - d*.7) + d*.7;
         
         d = map(rd*t + ro);
     }
