@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "parcel-https": "parcel index.html --https --host 0.0.0.0",
+    "start": "parcel index.html --https --host 0.0.0.0",
     "build": "parcel build index.html --out-dir docs --public-url https://shaderworlds.com",
     "parcel": "parcel index.html",
     "prettier": "prettier",
@@ -17,7 +17,7 @@
     "dat.gui": "^0.7.7",
     "gsap": "^3.5.1",
     "parcel": "^1.12.4",
-    "three": "mrdoob/three.js#dev"
+    "three": "0.125.0"
   },
   "devDependencies": {
     "eslint": "^7.16.0",
