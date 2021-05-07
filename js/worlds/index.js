@@ -11,3 +11,5 @@ export * as fractalpyramid from './fractalpyramid'
 export * as raymarchingprimitives from './raymarchingprimitives'
 export * as columnsandarches from './columnsandarches'
 export * as entangledvines from './entangledvines'
+export * as cloudycrystal from './cloudycrystal'
+

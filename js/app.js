@@ -246,12 +246,14 @@ export default class Shaderworlds {
 
   addObjects() {
     this.cameraWorldDirection = new THREE.Vector3()
-    // strip the starting ? and find the correct world, or default to worlds/soul.js
-    const worldName = window.location.search.replace(/^\?/, '') || 'soul'
-    this.world = worlds[worldName] || worlds.soul
-    
+    // strip the starting ? and find the correct world, or default to worlds/volumetricpainting.js
+    const worldName =
+      window.location.search.replace(/^\?/, '') || 'volumetricpainting'
+    this.world = worlds[worldName] || worlds.volumetricpainting
+
     // Update the on screen instructions if available
-    this.world.instructions && (this.instructions.innerHTML = this.world.instructions)
+    this.world.instructions &&
+      (this.instructions.innerHTML = this.world.instructions)
     this.material = this.world.material
     if (this.world.cameraOffset) {
       this.dolly.position.set(
@@ -527,7 +529,6 @@ export default class Shaderworlds {
       this.material.uniforms.virtualCameraPosition.value.setFromMatrixPosition(
         this.cameraSingle.matrixWorld
       )
-      
     }
     this.prevTime = this.time
 
