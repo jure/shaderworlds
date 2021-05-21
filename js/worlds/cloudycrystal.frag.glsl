@@ -16,7 +16,10 @@ uniform sampler2D iChannel0;          // input channel. XX = 2D/Cube
 
 uniform vec3 leftControllerPosition;
 uniform vec3 rightControllerPosition;
-
+uniform vec3 numberXYZ;
+uniform float rotationX;
+uniform float rotationY;
+uniform float rotationZ;
 uniform vec3 iChannelResolution[1];
 
 uniform float zNear;
@@ -173,13 +176,16 @@ vec3 skyColor(vec3 ro, vec3 rd) {
 
   if (tp > 0.0) {
     vec3 pos  = ro + tp*rd;
+    vec3 rpos = roo + tp*rdd;
+
     vec3 ld   = normalize(lightPos - pos);
+    // vec3 ldr = ntransform(box_world_to_obj, ld);
     float ts4 = RAYSHAPE(pos, ld);
     vec3 spos = pos + ld*ts4;
     float its4= IRAYSHAPE(spos, ld);
     // Extremely fake soft shadows
     // float sha = 0.;
-    float sha = ts4 == miss ? 1.0 : (1.0-1.0*tanh_approx(its4*1.5/(0.5+.5*ts4)));
+    float sha = ts4 == miss ? 1.0 : (1.0-1.0*tanh_approx(its4*4.5/(0.5+.5*ts4)));
     vec3 nor  = vec3(0.0, 1.0, 0.0);
     vec3 icol = 1.5*skyCol1 + 4.0*sunCol*sha*dot(-rd, nor);
     vec2 ppos = pos.xz*0.5;
@@ -199,7 +205,7 @@ vec3 skyColor(vec3 ro, vec3 rd) {
 
 // Marble fractal from https://www.shadertoy.com/view/MtX3Ws
 vec2 csqr(vec2 a) { 
-  return vec2(a.x*a.x - a.y*a.y, (1.0 + iTime/100000.0)*a.x*a.y); 
+  return vec2(a.x*a.x - mod((iTime/1000.0), 2.0)*a.y*a.y, 2.*a.x*a.y); 
 }
 
 float marble_df(vec3 p) {  
@@ -223,7 +229,6 @@ vec3 marble_march(vec3 ro, vec3 rd, vec2 tminmax) {
   vec3 col  = vec3(0.0);
   float c   = 0.;
   const int max_iter = 64;
-  // ro.z = ro.z * (iTime / 10000.0); // FUN!
   for(int i = 0; i < max_iter; ++i) {
       t += dt*exp(-2.0*c);
       if(t>tminmax.y) { 
@@ -338,8 +343,12 @@ void main() {
     vec3 rayPosition = camPos;
 
   // Rotation for sphere
-  box_obj_to_world = 
-                      rotate( normalize(vec3(0.0,1.0,1.0)), iTime / 10000000.0 ); 
+  // move on x axis, rotate around Z
+  // move on z axis, rotate around X
+  box_obj_to_world = rotate( normalize(vec3(0.0,1.0,1.0)), iTime/1000.0 );
+  // box_obj_to_world = rotate( normalize(vec3(0.0,0.0,1.0)), rotationX );
+  // box_obj_to_world = box_obj_to_world * rotate( normalize(vec3(0.0,0.0,0.0)), rotationY );
+  // box_obj_to_world = box_obj_to_world * rotate( normalize(vec3(1.0,0.0,0.0)), rotationZ );
   box_world_to_obj = inverse( box_obj_to_world );
   
   vec3 col = render(camPos, rd);
