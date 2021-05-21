@@ -103,6 +103,8 @@ export default class Shaderworlds {
     this.dolly.add(this.leftController)
     this.dolly.add(this.rightController)
 
+    this.leftIndex = 0
+    this.rightIndex = 1
     this.time = 0
     this.isPlaying = true
 
@@ -116,6 +118,20 @@ export default class Shaderworlds {
     this.setupResize()
     this.keyEvents()
 
+    // Bind controller events
+    if (this.world.onSelectStartLeft) {
+      this.boundonSelectStartLeft = this.world.onSelectStartLeft.bind(this)
+    }
+    if (this.world.onSelectStartRight) {
+      this.boundonSelectStartRight = this.world.onSelectStartRight.bind(this)
+    }
+    if (this.world.onSelectEndLeft) {
+      this.boundonSelectEndLeft = this.world.onSelectEndLeft.bind(this)
+    }
+    if (this.world.onSelectEndRight) {
+      this.boundonSelectEndRight = this.world.onSelectEndRight.bind(this)
+    }
+
     let currentBlockerStyle
     this.renderer.xr.addEventListener('sessionstart', () => {
       currentBlockerStyle = blocker.style.display
@@ -124,6 +140,7 @@ export default class Shaderworlds {
       const currentCamera = this.renderer.xr.getCamera(that.cameraSingle)
       currentCamera.add(this.planeL)
       this.scene.add(currentCamera)
+      this.bindControllerEvents()
     })
     this.renderer.xr.addEventListener('sessionend', () => {
       blocker.style.display = currentBlockerStyle
@@ -150,6 +167,49 @@ export default class Shaderworlds {
       },
       false
     )
+  }
+
+  unbindExistingControllerEvents() {
+    this.leftController.removeEventListener(
+      'selectstart',
+      this.boundonSelectStartLeft
+    )
+    this.leftController.removeEventListener(
+      'selectend',
+      this.boundonSelectEndLeft
+    )
+    this.rightController.removeEventListener(
+      'selectstart',
+      this.boundonSelectStartRight
+    )
+    this.rightController.removeEventListener(
+      'selectend',
+      this.boundonSelectEndRight
+    )
+  }
+
+  bindControllerEvents() {
+    // Set up listeners if any are provided by the world
+    this.world.onSelectStartLeft &&
+      this.leftController.addEventListener(
+        'selectstart',
+        this.boundonSelectStartLeft
+      )
+    this.world.onSelectStartRight &&
+      this.rightController.addEventListener(
+        'selectstart',
+        this.boundonSelectStartRight
+      )
+    this.world.onSelectEndLeft &&
+      this.leftController.addEventListener(
+        'selectend',
+        this.boundonSelectEndLeft
+      )
+    this.world.onSelectEndRight &&
+      this.rightController.addEventListener(
+        'selectend',
+        this.boundonSelectEndRight
+      )
   }
 
   buildController(data) {
@@ -305,28 +365,6 @@ export default class Shaderworlds {
 
     // Add "normal" polygonal geometry if needed
     this.world.geometry && this.world.geometry(this)
-
-    // Set up listeners if any are provided by the world
-    this.world.onSelectStartLeft &&
-      this.leftController.addEventListener(
-        'selectstart',
-        this.world.onSelectStartLeft.bind(this)
-      )
-    this.world.onSelectStartRight &&
-      this.rightController.addEventListener(
-        'selectstart',
-        this.world.onSelectStartRight.bind(this)
-      )
-    this.world.onSelectEndLeft &&
-      this.leftController.addEventListener(
-        'selectend',
-        this.world.onSelectEndLeft.bind(this)
-      )
-    this.world.onSelectEndRight &&
-      this.rightController.addEventListener(
-        'selectend',
-        this.world.onSelectEndRight.bind(this)
-      )
   }
 
   _calcResolution(width, height, imageAspect) {
@@ -385,15 +423,15 @@ export default class Shaderworlds {
   checkSqueeze() {
     // Left squeeze
     if (
-      this.renderer.xr.getSession().inputSources[0]?.gamepad.buttons[1]?.value >
-        0.98 &&
+      this.renderer.xr.getSession().inputSources[this.leftIndex]?.gamepad
+        .buttons[1]?.value > 0.98 &&
       !this.leftSqueeze
     ) {
       this.world.onSqueezeStartLeft && this.world.onSqueezeStartLeft()
       this.leftSqueeze = true
     } else if (
-      this.renderer.xr.getSession().inputSources[0]?.gamepad.buttons[1]?.value <
-        0.02 &&
+      this.renderer.xr.getSession().inputSources[this.leftIndex]?.gamepad
+        .buttons[1]?.value < 0.02 &&
       this.leftSqueeze
     ) {
       this.world.onSqueezeEndLeft && this.world.onSqueezeEndLeft()
@@ -402,15 +440,15 @@ export default class Shaderworlds {
 
     // Right squeeze
     if (
-      this.renderer.xr.getSession().inputSources[1]?.gamepad.buttons[1]?.value >
-        0.98 &&
+      this.renderer.xr.getSession().inputSources[this.rightIndex]?.gamepad
+        .buttons[1]?.value > 0.98 &&
       !this.rightSqueeze
     ) {
       this.world.onSqueezeStartRight && this.world.onSqueezeStartRight()
       this.rightSqueeze = true
     } else if (
-      this.renderer.xr.getSession().inputSources[1]?.gamepad.buttons[1]?.value <
-        0.02 &&
+      this.renderer.xr.getSession().inputSources[this.rightIndex]?.gamepad
+        .buttons[1]?.value < 0.02 &&
       this.rightSqueeze
     ) {
       this.world.onSqueezeEndLeft && this.world.onSqueezeEndLeft()
@@ -448,18 +486,43 @@ export default class Shaderworlds {
       this.direction.normalize() // this ensures consistent movements in all directions
     } else if (
       this.renderer.xr.isPresenting &&
-      this.renderer.xr.getSession().inputSources[0]
+      this.renderer.xr.getSession().inputSources[this.leftIndex]
     ) {
       // TODO: This is super hacky.
       this.direction.y = 0
-      this.direction.x = this.renderer.xr.getSession().inputSources[0]?.gamepad?.axes[2]
-      this.direction.z = this.renderer.xr.getSession().inputSources[0]?.gamepad?.axes[3]
+      this.direction.x = this.renderer.xr.getSession().inputSources[
+        this.leftIndex
+      ]?.gamepad?.axes[2]
+      this.direction.z = this.renderer.xr.getSession().inputSources[
+        this.leftIndex
+      ]?.gamepad?.axes[3]
     }
 
     this.material.uniforms.iTime.value = this.time
     this.material.uniforms.iFrame.value = this.currentFrame
 
     if (this.renderer.xr.isPresenting) {
+      // Switch controllers if necessary, often 0 is left, sometimes it's right
+      if (
+        this.renderer.xr.getSession().inputSources[0]?.handedness !== 'left'
+      ) {
+        this.leftIndex = 1
+        this.rightIndex = 0
+        this.unbindExistingControllerEvents()
+        this.leftController = this.renderer.xr.getController(this.leftIndex)
+        this.rightController = this.renderer.xr.getController(this.rightIndex)
+        this.bindControllerEvents()
+      } else if (
+        this.leftIndex === 1 &&
+        this.renderer.xr.getSession().inputSources[0]?.handedness === 'left'
+      ) {
+        this.leftIndex = 0
+        this.rightIndex = 1
+        this.unbindExistingControllerEvents()
+        this.leftController = this.renderer.xr.getController(this.leftIndex)
+        this.rightController = this.renderer.xr.getController(this.rightIndex)
+        this.bindControllerEvents()
+      }
       this.checkSqueeze()
 
       const currentCamera = this.renderer.xr.getCamera(this.cameraSingle)
